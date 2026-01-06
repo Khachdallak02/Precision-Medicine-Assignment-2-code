@@ -17,7 +17,7 @@ import mygene
 
 # pySCENIC imports for full pipeline
 try:
-    from arboreto.algo import grnboost2
+    from arboreto.algo import genie3
     from pyscenic.prune import prune2df, df2regulons
     from pyscenic.aucell import aucell
     from pyscenic.rss import regulon_specificity_scores
@@ -204,26 +204,26 @@ if run_full_pipeline:
     tf_names = [tf for tf in tf_names if tf in gene_names]
     print(f"Found {len(tf_names)} TFs in expression matrix")
     
-    # Step 5.2: GRNBoost2 - Infer co-expression modules
-    print("\n[Step 5.2] Running GRNBoost2 to infer co-expression modules...")
+    # Step 5.2: GENIE3 - Infer co-expression modules
+    print("\n[Step 5.2] Running GENIE3 to infer co-expression modules...")
     print("This step may take 10-30 minutes depending on data size...")
     try:
-        adjacencies = grnboost2(
+        adjacencies = genie3(
             expr_df,
             tf_names=tf_names,
             verbose=True,
             num_workers=NUM_WORKERS
         )
-        print(f"GRNBoost2 completed. Found {len(adjacencies)} regulatory relationships")
+        print(f"GENIE3 completed. Found {len(adjacencies)} regulatory relationships")
         print(f"Sample adjacencies:\n{adjacencies.head()}")
         
         # Save intermediate results
-        adjacencies_file = os.path.join(OUTPUT_DIR, 'adjacencies_grnboost2.csv')
+        adjacencies_file = os.path.join(OUTPUT_DIR, 'adjacencies_genie3.csv')
         adjacencies.to_csv(adjacencies_file, index=False)
         print(f"Saved adjacencies to: {adjacencies_file}")
         
     except Exception as e:
-        print(f"ERROR in GRNBoost2: {e}")
+        print(f"ERROR in GENIE3: {e}")
         print("Falling back to correlation-based approach...")
         run_full_pipeline = False
         adjacencies = None
@@ -236,13 +236,13 @@ if run_full_pipeline:
             print("WARNING: Motif annotations file not found!")
             print("Expected file: motifs-v9-nr.hgnc-m0.001-o0.0.tbl")
             print("Download from: https://resources.aertslab.org/cistarget/")
-            print("Skipping cisTarget step and using GRNBoost2 results directly...")
+            print("Skipping cisTarget step and using GENIE3 results directly...")
             regulons = None
         elif not RANKING_DATABASE_FILE or not os.path.exists(RANKING_DATABASE_FILE):
             print("WARNING: Ranking database file not found!")
             print("Expected file: hg38__refseq-r80__10kb_up_and_down_tss.mc9nr.feather")
             print("Download from: https://resources.aertslab.org/cistarget/")
-            print("Skipping cisTarget step and using GRNBoost2 results directly...")
+            print("Skipping cisTarget step and using GENIE3 results directly...")
             regulons = None
         else:
             try:
@@ -270,7 +270,7 @@ if run_full_pipeline:
                 
             except Exception as e:
                 print(f"ERROR in cisTarget analysis: {e}")
-                print("Using GRNBoost2 results without pruning...")
+                print("Using GENIE3 results without pruning...")
                 regulons = None
     else:
         if run_full_pipeline:
@@ -315,16 +315,16 @@ if run_full_pipeline:
             grn_df = pd.DataFrame(edges)
             print(f"\nExtracted {len(grn_df)} edges from {len(regulons)} regulons")
         else:
-            # Use GRNBoost2 adjacencies directly
+            # Use GENIE3 adjacencies directly
             # Ensure adjacencies has the correct column names
             if adjacencies.columns.tolist() != ['TF', 'Target', 'Weight']:
-                # Rename columns if needed (GRNBoost2 typically returns 'TF', 'Target', 'importance')
+                # Rename columns if needed (GENIE3 typically returns 'TF', 'Target', 'importance')
                 if 'importance' in adjacencies.columns:
                     adjacencies = adjacencies.rename(columns={'importance': 'Weight'})
                 elif len(adjacencies.columns) == 3:
                     adjacencies.columns = ['TF', 'Target', 'Weight']
             grn_df = adjacencies.copy()
-            print(f"\nUsing {len(grn_df)} edges from GRNBoost2")
+            print(f"\nUsing {len(grn_df)} edges from GENIE3")
     
     # Fallback to correlation-based approach
     if not run_full_pipeline or adjacencies is None:
@@ -426,7 +426,7 @@ print(f"  - grn_heart_failure_pyscenic.csv")
 print(f"  - expression_matrix_heart_failure.csv")
 print(f"  - grn_summary_heart_failure.csv")
 if run_full_pipeline and adjacencies is not None:
-    print(f"  - adjacencies_grnboost2.csv")
+    print(f"  - adjacencies_genie3.csv")
     if regulons is not None:
         print(f"  - network_pruned.csv")
         print(f"  - aucell_scores.csv")
